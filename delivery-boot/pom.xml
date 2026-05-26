@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.delivery</groupId>
+        <artifactId>instant-delivery</artifactId>
+        <version>1.0.0</version>
+    </parent>
+    <artifactId>delivery-boot</artifactId>
+    <name>delivery-boot</name>
+    <description>启动模块：聚合所有业务模块，提供配置文件与可执行 jar</description>
+
+    <dependencies>
+        <dependency><groupId>com.delivery</groupId><artifactId>delivery-common</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-actuator</artifactId></dependency>
+    </dependencies>
+
+    <build>
+        <finalName>swiftdrop</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.delivery.DeliveryApplication</mainClass>
+                    <excludes>
+                        <exclude><groupId>org.projectlombok</groupId><artifactId>lombok</artifactId></exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution><goals><goal>repackage</goal></goals></execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
