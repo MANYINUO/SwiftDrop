@@ -20,6 +20,9 @@
 
     <modules>
         <module>delivery-common</module>
+        <module>delivery-rider</module>
+        <module>delivery-order</module>
+        <module>delivery-dispatch</module>
         <module>delivery-boot</module>
     </modules>
 
