@@ -1,0 +1,297 @@
+/* ============================================================
+   页面骨架 · 响应式布局原语
+   ------------------------------------------------------------
+   断点约定（全项目统一，不要在页面里另起一套）：
+     sm  640px   移动端：底部标签栏、单列、全宽
+     md  768px   平板：开始出现双列
+     lg  1024px  桌面：正式双栏 + sticky 侧栏
+     xl  1280px  内容区达到最大宽度
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   页面头：所有页面共用（标题 + 说明 + 右侧操作）
+   ------------------------------------------------------------ */
+
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+  flex-wrap: wrap;
+}
+
+.page-head-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.page-title {
+  font-size: var(--fs-22);
+  font-weight: 700;
+  color: var(--text-strong);
+  letter-spacing: -0.022em;
+  line-height: 1.2;
+}
+
+.page-desc {
+  font-size: var(--fs-13);
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.page-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .page-head {
+    margin-bottom: var(--sp-4);
+  }
+
+  .page-title {
+    font-size: var(--fs-18);
+  }
+
+  .page-desc {
+    font-size: var(--fs-12);
+  }
+}
+
+/* ------------------------------------------------------------
+   双栏布局：桌面左内容 + 右侧栏，移动端自动堆成单列
+   ------------------------------------------------------------ */
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-5);
+  align-items: start;
+}
+
+/* 侧栏在移动端排在主内容之后（默认 DOM 顺序即可），桌面端粘住 */
+.split-aside {
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .split {
+    grid-template-columns:
+      minmax(0, var(--split-main, 1.15fr))
+      minmax(0, var(--split-side, 0.85fr));
+    gap: var(--sp-6);
+  }
+
+  .split-aside {
+    position: sticky;
+    top: calc(var(--header-h) + var(--sp-5));
+  }
+}
+
+/* ------------------------------------------------------------
+   卡片栅格：订单卡 / 骑手卡这类自包含卡片用
+   ------------------------------------------------------------ */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-3);
+}
+
+@media (min-width: 768px) {
+  .card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+}
+
+/* ------------------------------------------------------------
+   指标网格
+   ------------------------------------------------------------ */
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--sp-3);
+}
+
+@media (min-width: 768px) {
+  .metric-grid {
+    grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+  }
+}
+
+/* ------------------------------------------------------------
+   通用面 / 卡
+   ------------------------------------------------------------ */
+
+.card {
+  padding: var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+}
+
+@media (min-width: 768px) {
+  .card {
+    padding: var(--sp-5);
+  }
+}
+
+/* 分区标题：左侧一根品牌色细杆 */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  color: var(--text-strong);
+  letter-spacing: 0.01em;
+  margin-bottom: var(--sp-3);
+}
+
+.section-title::before {
+  content: '';
+  width: 3px;
+  height: 13px;
+  border-radius: 2px;
+  background: var(--brand);
+  flex: 0 0 3px;
+}
+
+.section-title .section-tail {
+  margin-left: auto;
+  font-weight: 400;
+  font-size: var(--fs-12);
+  color: var(--text-faint);
+}
+
+/* ------------------------------------------------------------
+   纵向堆叠
+   ------------------------------------------------------------ */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.stack-5 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+/* ------------------------------------------------------------
+   信息行（左标签右值）
+   ------------------------------------------------------------ */
+
+.info-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.info-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  padding: 10px 0;
+  font-size: var(--fs-13);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-row > dt {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.info-row > dd {
+  margin: 0;
+  text-align: right;
+  color: var(--text-strong);
+  font-weight: 500;
+  min-width: 0;
+  word-break: break-word;
+}
+
+/* 金额：品牌色，等宽数字 */
+.amount {
+  font-family: var(--num-font);
+  font-feature-settings: var(--num-feature);
+  font-weight: 700;
+  color: var(--brand-600);
+  letter-spacing: -0.01em;
+}
+
+/* ------------------------------------------------------------
+   移动端吸底操作栏
+   ------------------------------------------------------------
+   负 margin 抵消容器左右内边距，做出"通栏"效果；
+   bottom 要避开底部标签栏，否则会被压在下面看不见。
+   ------------------------------------------------------------ */
+
+.sticky-actions {
+  position: sticky;
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin: var(--sp-5) calc(var(--gutter) * -1) calc(var(--sp-4) * -1);
+  padding: var(--sp-3) var(--gutter);
+  /* 用不透明底：这栏会浮在内容上方，半透明会让下面的卡片透出来显得很脏 */
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -6px 20px -12px rgb(16 24 40 / 0.22);
+}
+
+/* 桌面端没有底部标签栏，也不该吸底 —— 直接当普通行用 */
+@media (min-width: 640px) {
+  .sticky-actions {
+    bottom: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sticky-actions.desktop-static {
+    position: static;
+    margin: 0;
+    padding: 0;
+    background: none;
+    backdrop-filter: none;
+    border-top: none;
+    box-shadow: none;
+  }
+}
+
+/* ------------------------------------------------------------
+   断点显隐工具
+   ------------------------------------------------------------
+   ⚠️ 只在「需要隐藏」时声明 display，显示时一个字都不写。
+   否则 .only-mobile / .only-desktop 会和元素自己的 display 打架
+   （同为单类选择器，后写的赢）—— 比如把 .sticky-actions 的
+   display:flex 覆盖成 display:initial，整条吸底栏就会塌成行内元素。
+   ------------------------------------------------------------ */
+
+@media (min-width: 1024px) {
+  .only-mobile {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .only-desktop {
+    display: none !important;
+  }
+}
