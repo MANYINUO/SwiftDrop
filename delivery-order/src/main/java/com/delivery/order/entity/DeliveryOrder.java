@@ -3,6 +3,7 @@ package com.delivery.order.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.delivery.common.enums.OrderStatus;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -66,4 +67,11 @@ public class DeliveryOrder {
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    /**
+     * 把字符串状态转成枚举，方便业务代码判断
+     */
+    public OrderStatus statusEnum() {
+        return OrderStatus.of(this.status);
+    }
 }

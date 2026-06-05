@@ -1,0 +1,342 @@
+/* ============================================================
+   基础层 · Reset / 排版 / 通用工具类
+   ============================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--fs-14);
+  line-height: var(--lh-normal);
+  color: var(--text);
+  background: var(--bg-app);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+#app {
+  min-height: 100dvh;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+figure,
+ul,
+ol {
+  margin: 0;
+}
+
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* 可见焦点环：用 outline 而不是 box-shadow，避免被 overflow 裁掉 */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+::selection {
+  background: var(--brand-100);
+  color: var(--brand-800);
+}
+
+/* 细滚动条，跟主题一致 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--n-300) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--n-300);
+  border-radius: var(--r-full);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--n-400);
+  background-clip: content-box;
+}
+
+/* ============================================================
+   排版工具
+   ============================================================ */
+
+/* 数字：等宽 + tabular，用于金额 / 距离 / 订单号 / 指标 */
+.num {
+  font-family: var(--num-font);
+  font-feature-settings: var(--num-feature);
+  letter-spacing: -0.01em;
+}
+
+/* 等宽文本（订单号 / 坐标 / 打分明细这类需要逐位对齐的） */
+.mono {
+  font-family: var(--num-font);
+  font-feature-settings: var(--num-feature);
+}
+
+/* 不折行：订单号、时间这类定长文本在表格里绝不能被拆成两行 */
+.nowrap {
+  white-space: nowrap;
+}
+
+/* 小号全大写标签，用于分区标题上方的"眉标" */
+.eyebrow {
+  font-size: var(--fs-11);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.faint {
+  color: var(--text-faint);
+}
+
+.t-strong {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.t-13 {
+  font-size: var(--fs-13);
+}
+
+.t-12 {
+  font-size: var(--fs-12);
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   布局工具
+   ============================================================ */
+
+.row {
+  display: flex;
+  align-items: center;
+}
+
+.row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 分区标题：左侧一根品牌色细杆，比 Element 的默认标题更有识别度 */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  color: var(--text-strong);
+  letter-spacing: 0.01em;
+  margin-bottom: var(--sp-3);
+}
+
+.section-title::before {
+  content: '';
+  width: 3px;
+  height: 13px;
+  border-radius: 2px;
+  background: var(--brand);
+  flex: 0 0 3px;
+}
+
+.section-title .section-tail {
+  margin-left: auto;
+  font-weight: 400;
+  font-size: var(--fs-12);
+  color: var(--text-faint);
+}
+
+/* 分隔线：比卡片更轻，用在对齐密集的列表里 */
+.hr {
+  height: 1px;
+  background: var(--border-subtle);
+  border: 0;
+  margin: var(--sp-4) 0;
+}
+
+/* ============================================================
+   面 / 卡片
+   ============================================================ */
+
+.surface {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+
+/* 带微弱抬升的面，用于需要从底色里浮出来的区域 */
+.surface-raised {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-sm);
+}
+
+/* 内凹面，用于代码/坐标这类"嵌入"内容 */
+.inset {
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+}
+
+/* ============================================================
+   路由过渡
+   ============================================================ */
+
+/*
+ * 路由 / 区块过渡为渐进增强：默认直接显示。
+ * 仅在 <html> 带 .motion（见 main.js 的动画时间轴探测）且未开启"减弱动效"时才做淡入淡出，
+ * 否则在后台标签 / 无头截图等 requestAnimationFrame 被冻结的环境，新页面会停在透明起始态，整页空白。
+ * 没有过渡时长时 Vue 会立即结束 enter/leave，不会卡住切换。
+ */
+@media (prefers-reduced-motion: no-preference) {
+  html.motion .fade-slide-enter-active {
+    transition: opacity var(--dur-slow) var(--ease-out-quart),
+      transform var(--dur-slow) var(--ease-out-quart);
+  }
+
+  html.motion .fade-slide-leave-active {
+    transition: opacity var(--dur-fast) var(--ease-in-out);
+  }
+
+  html.motion .fade-slide-enter-from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  html.motion .fade-slide-leave-to {
+    opacity: 0;
+  }
+}
+
+/* ============================================================
+   进入动画：列表项错位淡入
+   ============================================================ */
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * 入场淡入为渐进增强：内容默认可见。
+ * 只有 <html> 被打上 .motion（见 main.js 的动画时间轴探测）且用户未开启"减弱动效"时，
+ * 才应用错位淡入，避免动画在后台标签 / 冻结环境停在透明首帧。
+ */
+@media (prefers-reduced-motion: no-preference) {
+  html.motion .rise-in {
+    animation: rise-in var(--dur-slow) var(--ease-out-quart) both;
+    animation-delay: calc(var(--i, 0) * 45ms);
+  }
+}
+
+/* 实时指示点：呼吸 */
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ok);
+  flex: 0 0 6px;
+  animation: pulse-dot 1.8s var(--ease-in-out) infinite;
+}
+
+/* 骨架屏 */
+@keyframes shimmer {
+  from {
+    background-position: -180% 0;
+  }
+  to {
+    background-position: 180% 0;
+  }
+}
+
+.skeleton {
+  border-radius: var(--r-sm);
+  background: linear-gradient(
+    90deg,
+    var(--n-100) 25%,
+    var(--n-200) 37%,
+    var(--n-100) 63%
+  );
+  background-size: 220% 100%;
+  animation: shimmer 1.4s linear infinite;
+}

@@ -1,0 +1,215 @@
+/* ============================================================
+   设计令牌 · Design Tokens
+   ------------------------------------------------------------
+   方向：「调度中枢」—— 工业精密仪表感，快、可靠、有秩序。
+   所有颜色/间距/圆角/阴影/动效都从这里取，页面里不写裸值。
+   ============================================================ */
+
+:root {
+  /* ---------- 品牌色 · 信号橙 ---------- */
+  /* 取"即时/信号/预警灯"的意象。饱和但不刺眼，不用渐变。 */
+  --brand-50: #fff5ef;
+  --brand-100: #ffe7d8;
+  --brand-200: #ffcbac;
+  --brand-300: #ffa877;
+  --brand-400: #fd8038;
+  --brand-500: #f2600c;
+  --brand-600: #d94d05;
+  --brand-700: #b23c07;
+  --brand-800: #8c320d;
+  --brand-900: #712b0e;
+
+  --brand: var(--brand-500);
+  --brand-hover: var(--brand-600);
+  --brand-active: var(--brand-700);
+  --brand-soft: var(--brand-50);
+  --brand-ring: rgb(242 96 12 / 0.18);
+
+  /* ---------- 中性色 · 微暖石墨 ---------- */
+  /* 偏一点暖调，让橙色不孤立。避免纯黑纯白。 */
+  --n-0: #ffffff;
+  --n-25: #fcfcfd;
+  --n-50: #f7f8fa;
+  --n-100: #f1f3f7;
+  --n-200: #e5e8ee;
+  --n-300: #d0d6e0;
+  --n-400: #98a2b3;
+  --n-500: #667085;
+  --n-600: #475467;
+  --n-700: #344054;
+  --n-800: #1d2939;
+  --n-900: #101828;
+  --n-950: #0b1220;
+
+  /* 深色面（后台侧栏 / 地图底） */
+  --ink-900: #0e1524;
+  --ink-800: #151d30;
+  --ink-700: #1e283e;
+  --ink-600: #2b3752;
+  --ink-400: #64748b;
+  --ink-300: #94a3b8;
+  --ink-200: #cbd5e1;
+
+  /* ---------- 语义别名 ---------- */
+  --bg-app: var(--n-50);
+  --bg-surface: var(--n-0);
+  --bg-sunken: var(--n-100);
+  --bg-inverse: var(--ink-900);
+
+  --text-strong: var(--n-900);
+  --text: var(--n-700);
+  --text-muted: var(--n-500);
+  --text-faint: var(--n-400);
+  --text-inverse: #eef2f8;
+
+  --border: var(--n-200);
+  --border-strong: var(--n-300);
+  --border-subtle: var(--n-100);
+
+  /* ---------- 订单状态色 ---------- */
+  /* 每组三件套：前景 / 底色 / 描边。用 CSS 变量驱动，避免页面里散落十六进制 */
+  --st-pending-dispatch: #b54708;
+  --st-pending-dispatch-bg: #fffaeb;
+  --st-pending-dispatch-bd: #fedf89;
+
+  --st-dispatching: #175cd3;
+  --st-dispatching-bg: #eff8ff;
+  --st-dispatching-bd: #b2ddff;
+
+  --st-pending-pickup: #5925dc;
+  --st-pending-pickup-bg: #f4f3ff;
+  --st-pending-pickup-bd: #d9d6fe;
+
+  --st-delivering: #0e7090;
+  --st-delivering-bg: #ecfdff;
+  --st-delivering-bd: #a5f0fc;
+
+  --st-delivered: #067647;
+  --st-delivered-bg: #ecfdf3;
+  --st-delivered-bd: #abefc6;
+
+  --st-cancelled: #475467;
+  --st-cancelled-bg: #f2f4f7;
+  --st-cancelled-bd: #e4e7ec;
+
+  --st-exception: #b42318;
+  --st-exception-bg: #fef3f2;
+  --st-exception-bd: #fecdca;
+
+  /* ---------- 功能色 ---------- */
+  --ok: #067647;
+  --ok-bg: #ecfdf3;
+  --warn: #b54708;
+  --warn-bg: #fffaeb;
+  --danger: #b42318;
+  --danger-bg: #fef3f2;
+  --info: #175cd3;
+  --info-bg: #eff8ff;
+
+  /* ---------- 字体 ---------- */
+  /* 刻意不引外部字体 CDN：项目要求离线可用，且国内网络下 Web Font 是首屏杀手。
+     改用精调的系统栈 + 表格数字，把设计力气花在版式与节奏上。 */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI',
+    'PingFang SC', 'HarmonyOS Sans SC', 'Noto Sans SC', 'Microsoft YaHei UI',
+    'Microsoft YaHei', sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'SF Mono', 'JetBrains Mono', Consolas,
+    'Liberation Mono', monospace;
+
+  --fs-10: 10px;
+  --fs-11: 11px;
+  --fs-12: 12px;  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-15: 15px;
+  --fs-16: 16px;
+  --fs-18: 18px;
+  --fs-22: 22px;
+  --fs-28: 28px;
+  --fs-36: 36px;
+  --fs-48: 48px;
+
+  --lh-tight: 1.2;
+  --lh-snug: 1.4;
+  --lh-normal: 1.6;
+
+  /* 数字统一用等宽字形 + tabular-nums，表格里不会跳动 */
+  --num-font: var(--font-mono);
+  --num-feature: 'tnum' 1, 'zero' 1;
+
+  /* ---------- 间距（4 基数） ---------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 40px;
+  --sp-9: 56px;
+
+  /* ---------- 圆角 ---------- */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-2xl: 22px;
+  --r-full: 999px;
+
+  /* ---------- 阴影（克制，靠描边区分层次） ---------- */
+  --sh-xs: 0 1px 2px rgb(16 24 40 / 0.05);
+  --sh-sm: 0 1px 3px rgb(16 24 40 / 0.06), 0 1px 2px rgb(16 24 40 / 0.04);
+  --sh-md: 0 4px 12px -2px rgb(16 24 40 / 0.08), 0 2px 6px -2px rgb(16 24 40 / 0.05);
+  --sh-lg: 0 12px 32px -8px rgb(16 24 40 / 0.14), 0 4px 12px -4px rgb(16 24 40 / 0.06);
+  --sh-xl: 0 28px 64px -16px rgb(16 24 40 / 0.22);
+  --sh-brand: 0 6px 16px -4px rgb(242 96 12 / 0.35);
+
+  /* ---------- 动效 ---------- */
+  --ease-out-quart: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur: 200ms;
+  --dur-slow: 360ms;
+
+  /* ---------- 层级 ---------- */
+  --z-nav: 100;
+  --z-drawer: 2000;
+  --z-toast: 3000;
+
+  /* ---------- 布局 ---------- */
+  --shell-max: 1320px;
+  --header-h: 58px;
+  --tabbar-h: 62px;
+  /* 页面内容区的左右内边距，移动端与桌面端各一档 */
+  --gutter: 16px;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --gutter: 24px;
+  }
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --gutter: 32px;
+  }
+}
+
+/* 尊重系统的减弱动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 1ms;
+    --dur: 1ms;
+    --dur-slow: 1ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
