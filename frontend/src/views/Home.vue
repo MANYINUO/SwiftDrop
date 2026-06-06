@@ -28,7 +28,7 @@ const FLOW = [
   },
 ]
 
-// F1 阶段：只有用户端。后面 F2/F6 加上骑手端和后台后，再把卡片加回来。
+// F2 阶段：用户端 + 骑手端。后面 F6 加上后台后，再把卡片加回来。
 const ROLES = [
   {
     key: 'user',
@@ -38,6 +38,15 @@ const ROLES = [
     tagline: '下单 · 追踪',
     desc: '在线下单呼叫骑手，实时查看骑手位置与订单进度。',
     points: ['一键下单，快速安排骑手上门', '地图实时查看骑手位置', '订单状态与配送动态随时掌握'],
+  },
+  {
+    key: 'rider',
+    to: '/rider/1',
+    icon: 'scooter',
+    title: '骑手端',
+    tagline: '接单 · 配送',
+    desc: '上线接单，取货送达，位置实时上报，订单状态一目了然。',
+    points: ['上下线切换，待接单列表实时刷新', '一键接单、取货、送达', '位置上报与配送模拟'],
   },
 ]
 </script>
@@ -88,8 +97,8 @@ const ROLES = [
     <!-- ==================== 角色入口 ==================== -->
     <section class="roles">
       <div class="roles-head">
-        <h2>用户端</h2>
-        <p class="muted">在线下单，实时追踪订单状态与配送进度。</p>
+        <h2>选择角色</h2>
+        <p class="muted">用户下单，骑手接单配送，两端实时联动。</p>
       </div>
 
       <div class="role-grid">
@@ -363,8 +372,7 @@ const ROLES = [
 
 .role-grid {
   display: grid;
-  /* 刻意不等宽：第一张卡更大，打破"三列均分"的模板感 */
-  grid-template-columns: 1.25fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: var(--sp-4);
 }
 

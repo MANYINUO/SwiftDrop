@@ -17,12 +17,14 @@ import com.delivery.order.dto.OrderTrackVO;
 import com.delivery.order.dto.OrderVO;
 import com.delivery.order.entity.DeliveryOrder;
 import com.delivery.order.entity.OrderEvent;
+import com.delivery.order.event.OrderCreatedEvent;
 import com.delivery.order.mapper.DeliveryOrderMapper;
 import com.delivery.order.mapper.OrderEventMapper;
 import com.delivery.order.service.OrderService;
 import com.delivery.order.util.OrderNoGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +44,7 @@ public class OrderServiceImpl implements OrderService {
 
     private final DeliveryOrderMapper orderMapper;
     private final OrderEventMapper eventMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     // 计价规则：起步价 8 元含 3 公里，超出部分每公里 2 元
     private static final int BASE_AMOUNT_FEN = 800;
@@ -110,6 +113,11 @@ public class OrderServiceImpl implements OrderService {
 
         log.info("订单创建成功 orderNo={} 距离={}米 金额={}分",
                 order.getOrderNo(), Math.round(distance), amountFen);
+
+        // 发布订单创建事件，调度模块监听后触发自动派单
+        // 用事件解耦：order 模块不直接依赖 dispatch 模块
+        eventPublisher.publishEvent(new OrderCreatedEvent(order.getId()));
+
         return OrderVO.of(order);
     }
 

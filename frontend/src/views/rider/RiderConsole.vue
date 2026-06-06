@@ -2,10 +2,8 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { riderApi, authApi } from '../../api'
+import { riderApi } from '../../api'
 import { toastError } from '../../api/http'
-import auth from '../../utils/auth'
-import { createWsClient } from '../../utils/ws'
 import { interpolate, distanceMeters } from '../../utils/geo'
 import { fenToYuan, formatTime, formatDistance } from '../../utils/format'
 import { useResponsiveValue } from '../../composables/useViewport'
@@ -33,7 +31,6 @@ const riderId = ref(Number(route.params.riderId) || 0)
 const rider = ref(null)
 const tasks = ref([])
 const currentOrders = ref([])
-const wsState = ref('connecting')
 const loading = ref(false)
 
 const mapHeight = useResponsiveValue({ mobile: 200, tablet: 250, desktop: 300 })
@@ -48,8 +45,6 @@ const sim = reactive({ running: false, timer: null, tick: 0 })
 const taskClock = ref(Date.now())
 let clockTimer = null
 let taskLoadedAt = 0
-
-let wsClient = null
 
 const isOnline = computed(() => !!rider.value?.online)
 
@@ -114,32 +109,6 @@ async function refresh() {
   loading.value = true
   await Promise.all([loadRider(), loadTasks(), loadCurrentOrders()])
   loading.value = false
-}
-
-/* ==================== 长连接 ==================== */
-
-function connect() {
-  wsClient?.close()
-  wsClient = createWsClient(`/ws/rider/${riderId.value}`, {
-    onOpen() { wsState.value = 'connected' },
-    onClose() { wsState.value = 'disconnected' },
-    onReconnect() {
-      wsState.value = 'reconnected'
-      // 断线期间漏掉的派单只能靠拉接口补
-      loadTasks()
-      loadCurrentOrders()
-    },
-    onMessage(msg) {
-      if (msg.type === 'DISPATCH_TASK') {
-        ElMessage({
-          message: `收到新派单：${msg.data.orderNo}`,
-          type: 'success',
-          duration: 3000,
-        })
-        loadTasks()
-      }
-    },
-  })
 }
 
 /* ==================== 上下线 ==================== */
@@ -230,12 +199,12 @@ function stopSim() {
   sim.timer = null
 }
 
-/* ==================== 接单 / 拒单 ==================== */
+/* ==================== 接单 ==================== */
 
-async function accept(task) {
+async function accept(order) {
   try {
-    const r = await riderApi.accept(riderId.value, task.taskId)
-    ElMessage.success(r.idempotent ? '这单你已经接过了' : '接单成功')
+    await riderApi.accept(riderId.value, order.orderNo)
+    ElMessage.success('接单成功')
     await refresh()
   } catch (e) {
     // 40006 = 已被别人接走，这是并发场景的正常结果
@@ -245,16 +214,6 @@ async function accept(task) {
       toastError(e)
     }
     await refresh()
-  }
-}
-
-async function reject(task) {
-  try {
-    await riderApi.reject(riderId.value, task.taskId, '骑手拒单')
-    ElMessage.info('已拒单')
-    await refresh()
-  } catch (e) {
-    toastError(e)
   }
 }
 
@@ -288,29 +247,19 @@ function distTo(target) {
 
 /* ==================== 生命周期 ==================== */
 
-/** 更换账号：退出当前骑手，回到骑手登录页（不能在工作台内直接切换成他人） */
-async function switchAccount() {
-  try {
-    await authApi.logout(auth.RIDER)
-  } catch {
-    /* 即使后端注销失败，前端也照常清态 */
-  }
+/** F2 简化版：没有登录页，切换账号改成回首页 */
+function switchAccount() {
   stopSim()
-  auth.logout(auth.RIDER)
   ElMessage.info('已退出当前骑手账号')
-  router.push('/login/rider')
+  router.push('/')
 }
 
 onMounted(() => {
-  // 首次进入也要建立长连接 —— 否则只有「切换骑手」时才会连上，
-  // 第一次打开页面永远收不到派单推送（这个坑踩过）
   refresh()
-  connect()
   clockTimer = setInterval(() => (taskClock.value = Date.now()), 1000)
 })
 
 onUnmounted(() => {
-  wsClient?.close()
   stopSim()
   clearInterval(clockTimer)
 })
@@ -382,10 +331,6 @@ onUnmounted(() => {
         <section class="card">
           <div class="section-title">
             实时位置
-            <span class="section-tail ws" :data-state="wsState">
-              <span class="ws-dot"></span>
-              {{ wsState === 'connected' || wsState === 'reconnected' ? '实时在线' : '连接中' }}
-            </span>
           </div>
 
           <MiniMap
@@ -438,13 +383,10 @@ onUnmounted(() => {
           />
 
           <div v-else class="stack">
-            <article v-for="t in tasks" :key="t.taskId" class="task-card">
+            <article v-for="t in tasks" :key="t.orderNo" class="task-card">
               <div class="task-top">
                 <span class="task-no num">{{ t.orderNo }}</span>
-                <span class="countdown" :data-urgent="remaining(t) <= 10">
-                  <AppIcon name="clock" :size="11" :stroke-width="2.2" />
-                  <b class="num">{{ remaining(t) }}</b>s
-                </span>
+                <StatusPill :status="t.status" size="sm" :with-icon="false" />
               </div>
 
               <RouteLine :pickup="t.pickupAddress" :deliver="t.deliverAddress" compact />
@@ -458,8 +400,7 @@ onUnmounted(() => {
               </div>
 
               <div class="task-actions">
-                <button class="act-btn" @click="reject(t)">拒单</button>
-                <button class="act-btn primary" @click="accept(t)">
+                <button class="act-btn primary wide" @click="accept(t)">
                   <AppIcon name="check" :size="14" :stroke-width="2.5" />
                   接单
                 </button>

@@ -35,6 +35,14 @@ const routes = [
     ],
   },
 
+  // ---------------- 骑手端 ----------------
+  {
+    path: '/rider/:riderId',
+    name: 'rider-console',
+    component: () => import('../views/rider/RiderConsole.vue'),
+    meta: { title: '骑手工作台' },
+  },
+
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 

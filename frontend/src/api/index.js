@@ -78,20 +78,17 @@ export const riderApi = {
   onlineList() {
     return http.get('/rider/online')
   },
+  /** F2 简化版：待接单列表（直接返回订单，没有 dispatch_task 表） */
   pendingTasks(riderId) {
-    return http.get(`/rider/${riderId}/dispatch-tasks`)
+    return http.get(`/rider/${riderId}/pending-orders`)
   },
-  /** 骑手手上进行中的订单（已接单未送达）—— 刷新页面后靠它恢复状态 */
+  /** 骑手手上进行中的订单（已接单未送达） */
   currentOrders(riderId) {
     return http.get(`/rider/${riderId}/orders`)
   },
-  accept(riderId, taskId) {
-    return http.post(`/rider/${riderId}/dispatch-tasks/${taskId}/accept`)
-  },
-  reject(riderId, taskId, reason) {
-    return http.post(`/rider/${riderId}/dispatch-tasks/${taskId}/reject`, null, {
-      params: { reason },
-    })
+  /** F2 简化版：接单用 orderNo，不用 taskId */
+  accept(riderId, orderNo) {
+    return http.post(`/rider/${riderId}/orders/${orderNo}/accept`)
   },
   pickup(riderId, orderNo) {
     return http.post(`/rider/${riderId}/orders/${orderNo}/pickup`)
