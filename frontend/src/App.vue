@@ -15,11 +15,13 @@ const router = useRouter()
 const navs = [
   { key: 'home', label: '概览', short: '概览', icon: 'grid', path: '/' },
   { key: 'user', label: '用户端', short: '用户', icon: 'user', path: '/user/create' },
+  { key: 'rider', label: '骑手端', short: '骑手', icon: 'scooter', path: '/rider/1' },
 ]
 
 const activeKey = computed(() => {
   const p = route.path
   if (p.startsWith('/user')) return 'user'
+  if (p.startsWith('/rider')) return 'rider'
   return 'home'
 })
 
@@ -300,7 +302,7 @@ onUnmounted(() => clearInterval(timer))
 
   .tabbar {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     position: fixed;
     left: 0;
     right: 0;

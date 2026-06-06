@@ -4,7 +4,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { userApi } from '../../api'
 import { toastError } from '../../api/http'
-import { createWsClient } from '../../utils/ws'
 import {
   statusLabel, fenToYuan, formatTime, formatDistance,
   eventLabel, eventDetail, eventIcon, operatorLabel,
@@ -34,9 +33,6 @@ const order = ref(null)
 const track = ref(null)
 const events = ref([])
 const trail = ref([])
-const wsState = ref('connecting')
-
-let wsClient = null
 
 /** 地图高度按断点切换（MiniMap 用 JS 量宽度，高度只能由 JS 给） */
 const mapHeight = useResponsiveValue({ mobile: 210, tablet: 280, desktop: 340 })
@@ -60,11 +56,6 @@ const canCancel = computed(() =>
 
 /** 事件流水按时间倒序，最新的在最上面 */
 const timeline = computed(() => [...events.value].reverse())
-
-const wsLabel = computed(() => {
-  if (wsState.value === 'connected' || wsState.value === 'reconnected') return '实时更新中'
-  return '连接中…'
-})
 
 async function loadAll() {
   try {
@@ -90,42 +81,6 @@ async function loadAll() {
   }
 }
 
-function connect() {
-  wsClient = createWsClient(`/ws/user/${orderNo}`, {
-    onOpen() {
-      wsState.value = 'connected'
-    },
-    onClose() {
-      wsState.value = 'disconnected'
-    },
-    onMessage(msg) {
-      if (msg.type === 'ORDER_STATUS') {
-        ElMessage({
-          message: `状态更新：${statusLabel(msg.data.fromStatus)} → ${statusLabel(msg.data.status)}`,
-          type: 'success',
-          duration: 2500,
-        })
-        // 简单可靠的做法：状态变了就拉一次全量
-        loadAll()
-      } else if (msg.type === 'RIDER_LOCATION') {
-        // 位置是高频推送，走增量更新，不拉全量
-        if (track.value) {
-          track.value.lng = msg.data.lng
-          track.value.lat = msg.data.lat
-        }
-        trail.value.push({ lng: Number(msg.data.lng), lat: Number(msg.data.lat) })
-        if (trail.value.length > 300) trail.value.shift()
-      }
-    },
-    onReconnect() {
-      // 断线期间漏掉的推送补不回来，重连后拉全量兜底
-      wsState.value = 'reconnected'
-      ElMessage.info('网络已恢复，正在更新最新状态…')
-      loadAll()
-    },
-  })
-}
-
 async function cancelOrder() {
   try {
     await ElMessageBox.confirm(
@@ -147,11 +102,9 @@ async function cancelOrder() {
 
 onMounted(() => {
   loadAll()
-  connect()
 })
 
 onUnmounted(() => {
-  wsClient?.close()
 })
 </script>
 
@@ -164,10 +117,6 @@ onUnmounted(() => {
         <p class="page-desc num">{{ orderNo }}</p>
       </div>
       <div class="page-head-actions">
-        <span class="ws-chip" :data-state="wsState">
-          <span class="ws-dot"></span>
-          {{ wsLabel }}
-        </span>
         <router-link to="/user/orders" class="ghost-btn">
           <AppIcon name="list" :size="14" />
           我的订单
