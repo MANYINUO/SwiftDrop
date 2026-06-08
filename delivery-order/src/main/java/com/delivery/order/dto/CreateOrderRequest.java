@@ -8,15 +8,18 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 
 /**
- * 创建订单请求体：取件地址 + 送达地址 + 物品信息
- * 字段上的 @NotNull/@NotBlank/@Pattern 是参数校验注解，
- * Controller 加 @Valid 后框架自动校验，失败由 GlobalExceptionHandler 统一返回中文提示
+ * 创建订单请求体：取件地址 + 送达地址 + 物品信息。
+ *
+ * <p>字段上的 {@code @NotNull / @NotBlank / @Pattern} 是 Jakarta Bean Validation 校验注解，
+ * Controller 参数加 {@code @Valid} 后由框架自动校验；{@code Address} 字段上的 {@code @Valid}
+ * 是「级联校验」——不加它，嵌套对象内部的规则不会生效。校验失败统一由
+ * {@code GlobalExceptionHandler} 转成中文提示返回，业务代码里不用手写一堆 if 判空。
  */
 @Data
 public class CreateOrderRequest {
 
     @NotNull(message = "取件信息不能为空")
-    @Valid  // 级联校验：不加这个，嵌套对象 Address 里的校验规则不会生效
+    @Valid
     private Address pickup;
 
     @NotNull(message = "送达信息不能为空")

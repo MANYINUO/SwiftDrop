@@ -9,7 +9,9 @@ import java.math.BigDecimal;
 
 /**
  * 骑手位置上报请求。
- * F2 简化版：同步写库，不做 Redis 防抖和批量缓冲。
+ *
+ * <p>这是全系统<b>调用频率最高</b>的接口：1 万在线骑手 × 每 3 秒一次 ≈ 3333 QPS。
+ * 所以实现上做了两件事：防抖 + 异步批量落库。
  */
 @Data
 public class LocationReportRequest {
@@ -24,6 +26,11 @@ public class LocationReportRequest {
     @DecimalMax(value = "90", message = "纬度不合法")
     private BigDecimal lat;
 
-    /** 配送中的订单号，可为空（骑手空闲时也上报位置） */
+    /**
+     * 配送中的订单号，可为空（骑手空闲时也上报位置）。
+     *
+     * <p>用 orderNo 而不是 orderId：客户端手里只有订单号（派单任务里给的），
+     * 而且推送时也要用订单号做订阅 key —— 全链路统一用 orderNo 才不会有转换缺口。
+     */
     private String orderNo;
 }

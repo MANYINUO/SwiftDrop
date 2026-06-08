@@ -1,5 +1,9 @@
 server:
   port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
 
 spring:
   application:
@@ -7,16 +11,35 @@ spring:
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://127.0.0.1:3306/swiftdrop?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: root
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/swiftdrop?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 3000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: DeliveryHikariPool
 
   data:
     redis:
-      host: 192.168.111.128
+      host: ${REDIS_HOST:192.168.111.128}
       port: 6379
-      password: root
+      password: ${REDIS_PASSWORD:root}
       database: 0
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+          max-wait: 2000ms
+
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
 
 mybatis-plus:
   configuration:
@@ -31,3 +54,34 @@ logging:
   level:
     root: info
     com.delivery: debug
+
+# ---------------- 业务可调参数 ----------------
+delivery:
+  dispatch:
+    # 骑手响应超时（秒）：超过即视为超时，触发下一位
+    response-timeout-seconds: 15
+    # 每轮最多推送的候选骑手数
+    candidate-limit: 10
+    # 最大派单轮次，超过转人工调度
+    max-round: 3
+    # 搜索半径阶梯（米）
+    radius-steps: 1000,3000,5000
+    # 超时扫描间隔（毫秒）
+    timeout-scan-interval-ms: 5000
+    # 是否开启自动派单（下单后自动触发调度）
+    auto-dispatch-enabled: true
+  location:
+    # 位置上报最小间隔（毫秒），低于此间隔的重复上报丢弃（防抖）
+    report-min-interval-ms: 2000
+    # 批量落库间隔（毫秒）
+    flush-interval-ms: 1000
+    # 单批最大条数
+    flush-batch-size: 500
+  # ---------------- 登录鉴权（演示账号；生产应落库并用 BCrypt 加密密码）----------------
+  auth:
+    admin:
+      id: 1
+      username: ${ADMIN_USERNAME:admin}
+      # 数字密码建议加引号，避免被 YAML 当作数值解析
+      password: "${ADMIN_PASSWORD:123456}"
+      name: 调度管理员

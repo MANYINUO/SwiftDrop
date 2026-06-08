@@ -9,10 +9,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * 订单视图对象（VO）：返回给前端的数据结构
- * 与实体 DeliveryOrder 的区别：VO 只挑前端需要的字段，
- * 并额外派生 statusDesc（状态中文名）和 amountYuan（把「分」换算成「元」）
- * 数据库内部一律用「分」存整数避免浮点误差，换算成元只发生在出参这一层
+ * 订单视图对象（VO，View Object）：返回给前端的数据结构。
+ *
+ * <p>与实体 {@code DeliveryOrder} 的区别：VO 只挑前端需要的字段，并额外派生
+ * {@code statusDesc}（状态中文名）与 {@code amountYuan}（把「分」换算成「元」用于显示）。
+ * 数据库内部一律用「分」存整数以避免浮点误差，换算成元只发生在出参这一层。
  */
 @Data
 public class OrderVO implements Serializable {
@@ -37,8 +38,10 @@ public class OrderVO implements Serializable {
 
     private String goodsDesc;
     private Integer goodsWeightG;
-    private Integer amountFen;    // 金额（分）
-    private String amountYuan;   // 金额（元），前端展示用
+    /** 金额（分） */
+    private Integer amountFen;
+    /** 金额（元），前端展示用 */
+    private String amountYuan;
     private Integer distanceM;
 
     private Long riderId;
@@ -55,9 +58,6 @@ public class OrderVO implements Serializable {
 
     private LocalDateTime createdAt;
 
-    /**
-     * 把实体转成 VO
-     */
     public static OrderVO of(DeliveryOrder o) {
         OrderVO vo = new OrderVO();
         vo.orderNo = o.getOrderNo();
@@ -80,7 +80,6 @@ public class OrderVO implements Serializable {
         vo.goodsDesc = o.getGoodsDesc();
         vo.goodsWeightG = o.getGoodsWeightG();
         vo.amountFen = o.getAmountFen();
-        // 分转元：BigDecimal.valueOf(金额, 2) 表示小数点左移2位
         vo.amountYuan = o.getAmountFen() == null ? null
                 : BigDecimal.valueOf(o.getAmountFen(), 2).toPlainString();
         vo.distanceM = o.getDistanceM();

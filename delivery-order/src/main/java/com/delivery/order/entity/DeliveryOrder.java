@@ -6,22 +6,36 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.delivery.common.enums.OrderStatus;
 import lombok.Data;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * 配送订单实体类，对应 delivery_order 表
+ * 配送订单主表。
+ *
+ * <p>字段设计要点：
+ * <ul>
+ *   <li>金额用「分」存 {@code Integer}，避免浮点误差</li>
+ *   <li>对外暴露 {@code orderNo}，不暴露自增 id</li>
+ *   <li>{@code version} 配合 CAS 更新做并发控制</li>
+ *   <li>{@code needManual} 标记候选骑手耗尽、需人工调度的订单</li>
+ * </ul>
  */
 @Data
 @TableName("delivery_order")
-public class DeliveryOrder {
+public class DeliveryOrder implements Serializable {
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    private String orderNo;         // 业务订单号（对外暴露，不暴露自增ID）
-    private Long userId;            // 下单用户ID
-    private String status;          // 订单状态：PENDING_DISPATCH / DISPATCHING / PENDING_PICKUP / DELIVERING / DELIVERED / CANCELLED / EXCEPTION
+    /** 业务订单号（对外暴露） */
+    private String orderNo;
+
+    /** 下单用户 */
+    private Long userId;
+
+    /** 当前状态，取值见 {@link OrderStatus} */
+    private String status;
 
     // ---------- 取件信息 ----------
     private BigDecimal pickupLng;
@@ -39,39 +53,37 @@ public class DeliveryOrder {
 
     // ---------- 物品与金额 ----------
     private String goodsDesc;
-    private Integer goodsWeightG;   // 物品重量（克）
-
-    // 金额统一用「分」存 INT，不用 DECIMAL/FLOAT
-    // 原因：浮点数有精度误差，财务计算必须用整数分
-    private Integer amountFen;      // 订单金额（分）
-    private Integer distanceM;      // 预估配送距离（米）
+    private Integer goodsWeightG;
+    /** 订单金额（分） */
+    private Integer amountFen;
+    /** 预估配送距离（米） */
+    private Integer distanceM;
 
     // ---------- 骑手 ----------
-    private Long riderId;           // 接单骑手ID，未派单为 NULL
+    private Long riderId;
 
     // ---------- 时效节点 ----------
-    private LocalDateTime expectDeliverAt;  // 承诺送达时间
-    private LocalDateTime dispatchedAt;     // 首次派单时间
-    private LocalDateTime acceptedAt;       // 骑手接单时间
-    private LocalDateTime pickedUpAt;       // 骑手取货时间
-    private LocalDateTime deliveredAt;      // 送达时间
-    private LocalDateTime cancelledAt;      // 取消时间
+    private LocalDateTime expectDeliverAt;
+    private LocalDateTime dispatchedAt;
+    private LocalDateTime acceptedAt;
+    private LocalDateTime pickedUpAt;
+    private LocalDateTime deliveredAt;
+    private LocalDateTime cancelledAt;
 
-    // ---------- 调度相关 ----------
-    private Integer dispatchRound;  // 已进行到第几轮派单
-    private Integer needManual;     // 1=需人工调度（候选骑手已耗尽）
-    private String cancelReason;    // 取消原因
+    // ---------- 调度 ----------
+    /** 已进行到第几轮派单 */
+    private Integer dispatchRound;
+    /** 1 = 需人工调度 */
+    private Integer needManual;
+    private String cancelReason;
 
-    // 乐观锁版本号
+    /** 乐观锁版本号 */
     private Integer version;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    /**
-     * 把字符串状态转成枚举，方便业务代码判断
-     */
     public OrderStatus statusEnum() {
-        return OrderStatus.of(this.status);
+        return OrderStatus.of(status);
     }
 }
