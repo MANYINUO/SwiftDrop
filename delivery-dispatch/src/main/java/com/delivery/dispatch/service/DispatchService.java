@@ -1,37 +1,62 @@
 package com.delivery.dispatch.service;
 
+import com.delivery.dispatch.dto.AcceptResult;
+import com.delivery.dispatch.dto.DispatchRoundResult;
+import com.delivery.dispatch.dto.DispatchTaskVO;
+import com.delivery.dispatch.entity.DispatchTask;
 import com.delivery.order.dto.OrderVO;
 
 import java.util.List;
 
-/**
- * 调度服务。
- * F3：自动派单——下单后系统按距离/负载/顺路/评分多维度打分，选最优骑手。
- * F2 已实现：待接单列表、接单、取货、送达、骑手容量管理。
- */
 public interface DispatchService {
 
     /**
-     * 自动派单：从在线骑手里选最优的，生成派单任务，订单状态变 DISPATCHING。
-     * F3 第一版简化：只派给最高分的1个骑手，不做多轮、不做拒单。
+     * 对指定订单执行一轮派单。
      *
-     * @param orderId 订单ID
-     * @return 派给的骑手ID，无候选时返回 null
+     * @param round 第几轮（从 1 开始），决定搜索半径
      */
-    Long autoDispatch(Long orderId);
+    DispatchRoundResult dispatchOrder(Long orderId, int round);
 
-    /** 待接单列表（PENDING_DISPATCH + DISPATCHING 状态的订单） */
-    List<OrderVO> pendingOrders();
+    /** 按订单号触发派单（下单后自动调用） */
+    DispatchRoundResult dispatchByOrderNo(String orderNo);
 
-    /** 骑手进行中的订单（PENDING_PICKUP + DELIVERING） */
+    /**
+     * 后台手动派单：指定骑手直接指派。
+     * 会作废该订单所有待响应任务。
+     */
+    DispatchRoundResult manualAssign(String orderNo, Long riderId, Long adminId);
+
+    /**
+     * 骑手接单 —— 全项目并发最关键的一步。
+     *
+     * <p>四步同一事务：CAS 抢占订单 → 更新派单任务 → 作废同轮其他任务 → 骑手容量 +1。
+     * 任何一步失败都回滚，保证「一个订单只分给一个骑手」且「骑手不超载」。
+     */
+    AcceptResult accept(Long riderId, Long taskId);
+
+    /** 骑手拒单 */
+    void reject(Long riderId, Long taskId, String reason);
+
+    /** 骑手取货 */
+    void pickup(Long riderId, String orderNo);
+
+    /** 骑手送达 */
+    void delivered(Long riderId, String orderNo);
+
+    /** 处理单个超时任务（由定时任务调用） */
+    void handleTimeout(DispatchTask task);
+
+    /** 某订单的全部派单记录 */
+    List<DispatchTaskVO> listByOrderNo(String orderNo);
+
+    /** 骑手待响应的派单（断线重连后补偿用） */
+    List<DispatchTaskVO> pendingTasks(Long riderId);
+
+    /**
+     * 骑手手上进行中的订单（已接单但还没送达）。
+     *
+     * <p>骑手端刷新页面后要靠这个接口恢复状态 —— 不能只依赖前端内存，
+     * 否则一刷新就"忘了"自己手上还有单。
+     */
     List<OrderVO> currentOrders(Long riderId);
-
-    /** 接单：PENDING_DISPATCH/DISPATCHING -> PENDING_PICKUP，设置 riderId，骑手容量+1 */
-    OrderVO accept(Long riderId, String orderNo);
-
-    /** 取货：PENDING_PICKUP -> DELIVERING */
-    OrderVO pickup(Long riderId, String orderNo);
-
-    /** 送达：DELIVERING -> DELIVERED，骑手容量-1 */
-    OrderVO delivered(Long riderId, String orderNo);
 }

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { userApi } from '../../api'
 import { toastError } from '../../api/http'
+import { createWsClient } from '../../utils/ws'
 import {
   statusLabel, fenToYuan, formatTime, formatDistance,
   eventLabel, eventDetail, eventIcon, operatorLabel,
@@ -33,6 +34,9 @@ const order = ref(null)
 const track = ref(null)
 const events = ref([])
 const trail = ref([])
+
+/** WebSocket 客户端 */
+let wsClient = null
 
 /** 地图高度按断点切换（MiniMap 用 JS 量宽度，高度只能由 JS 给） */
 const mapHeight = useResponsiveValue({ mobile: 210, tablet: 280, desktop: 340 })
@@ -102,9 +106,29 @@ async function cancelOrder() {
 
 onMounted(() => {
   loadAll()
+  // 连接 WebSocket，实时接收订单状态和骑手位置
+  wsClient = createWsClient(`/ws/user/${orderNo}`, {
+    onMessage(msg) {
+      if (msg.type === 'ORDER_STATUS') {
+        // 订单状态变化：重新拉全量（状态、骑手信息、事件流水一起更新）
+        loadAll()
+      } else if (msg.type === 'RIDER_LOCATION') {
+        // 骑手位置更新：增量更新地图上的骑手点和轨迹
+        if (msg.data?.lng && msg.data?.lat) {
+          track.value = { ...track.value, lng: msg.data.lng, lat: msg.data.lat }
+          trail.value = [...trail.value, { lng: Number(msg.data.lng), lat: Number(msg.data.lat) }]
+        }
+      }
+    },
+    onReconnect() {
+      // 断线重连后拉一次全量，补齐断线期间漏掉的推送
+      loadAll()
+    },
+  })
 })
 
 onUnmounted(() => {
+  wsClient?.close()
 })
 </script>
 

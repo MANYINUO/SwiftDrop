@@ -2,43 +2,68 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-    <parent>
-        <groupId>com.delivery</groupId>
-        <artifactId>swiftdrop</artifactId>
-        <version>1.0.0</version>
-    </parent>
-    <artifactId>delivery-boot</artifactId>
-    <name>delivery-boot</name>
-    <description>启动模块：聚合所有业务模块，提供配置文件与可执行 jar</description>
+  <modelVersion>4.0.0</modelVersion>
 
-    <dependencies>
-        <!-- 公共模块 -->
-        <dependency><groupId>com.delivery</groupId><artifactId>delivery-common</artifactId></dependency>
-        <!-- 业务模块：启动时把它们的 class 都加进 classpath，@MapperScan 才能扫到 -->
-        <dependency><groupId>com.delivery</groupId><artifactId>delivery-rider</artifactId></dependency>
-        <dependency><groupId>com.delivery</groupId><artifactId>delivery-order</artifactId></dependency>
-        <dependency><groupId>com.delivery</groupId><artifactId>delivery-dispatch</artifactId></dependency>
-        <!-- 监控端点 -->
-        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-actuator</artifactId></dependency>
-    </dependencies>
+  <parent>
+    <groupId>com.delivery</groupId>
+    <artifactId>swiftdrop</artifactId>
+    <version>1.0.0</version>
+  </parent>
 
-    <build>
-        <finalName>swiftdrop</finalName>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <mainClass>com.delivery.DeliveryApplication</mainClass>
-                    <excludes>
-                        <exclude><groupId>org.projectlombok</groupId><artifactId>lombok</artifactId></exclude>
-                    </excludes>
-                </configuration>
-                <executions>
-                    <execution><goals><goal>repackage</goal></goals></execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
+  <artifactId>delivery-boot</artifactId>
+  <name>delivery-boot</name>
+  <description>启动模块：聚合所有业务模块，提供配置文件与可执行 jar</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.delivery</groupId>
+      <artifactId>delivery-common</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.delivery</groupId>
+      <artifactId>delivery-order</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.delivery</groupId>
+      <artifactId>delivery-rider</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.delivery</groupId>
+      <artifactId>delivery-dispatch</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.delivery</groupId>
+      <artifactId>delivery-notify</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>swiftdrop</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <mainClass>com.delivery.DeliveryApplication</mainClass>
+          <excludes>
+            <exclude>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+            </exclude>
+          </excludes>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>repackage</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

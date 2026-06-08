@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { riderApi } from '../../api'
 import { toastError } from '../../api/http'
+import { createWsClient } from '../../utils/ws'
 import { interpolate, distanceMeters } from '../../utils/geo'
 import { fenToYuan, formatTime, formatDistance } from '../../utils/format'
 import { useResponsiveValue } from '../../composables/useViewport'
@@ -45,6 +46,9 @@ const sim = reactive({ running: false, timer: null, tick: 0 })
 const taskClock = ref(Date.now())
 let clockTimer = null
 let taskLoadedAt = 0
+
+/** WebSocket 客户端 */
+let wsClient = null
 
 const isOnline = computed(() => !!rider.value?.online)
 
@@ -257,11 +261,25 @@ function switchAccount() {
 onMounted(() => {
   refresh()
   clockTimer = setInterval(() => (taskClock.value = Date.now()), 1000)
+  // 连接 WebSocket，实时接收新派单通知
+  wsClient = createWsClient(`/ws/rider/${riderId.value}`, {
+    onMessage(msg) {
+      if (msg.type === 'DISPATCH_TASK') {
+        ElMessage.info('收到新派单，请尽快接单')
+        loadTasks()
+      }
+    },
+    onReconnect() {
+      // 重连后拉一次待接单，补齐断线期间漏掉的派单
+      loadTasks()
+    },
+  })
 })
 
 onUnmounted(() => {
   stopSim()
   clearInterval(clockTimer)
+  wsClient?.close()
 })
 </script>
 
