@@ -34,8 +34,8 @@ const order = ref(null)
 const track = ref(null)
 const events = ref([])
 const trail = ref([])
+const wsState = ref('connecting')
 
-/** WebSocket 客户端 */
 let wsClient = null
 
 /** 地图高度按断点切换（MiniMap 用 JS 量宽度，高度只能由 JS 给） */
@@ -61,6 +61,11 @@ const canCancel = computed(() =>
 /** 事件流水按时间倒序，最新的在最上面 */
 const timeline = computed(() => [...events.value].reverse())
 
+const wsLabel = computed(() => {
+  if (wsState.value === 'connected' || wsState.value === 'reconnected') return '实时更新中'
+  return '连接中…'
+})
+
 async function loadAll() {
   try {
     const [o, t, ev] = await Promise.all([
@@ -85,6 +90,42 @@ async function loadAll() {
   }
 }
 
+function connect() {
+  wsClient = createWsClient(`/ws/user/${orderNo}`, {
+    onOpen() {
+      wsState.value = 'connected'
+    },
+    onClose() {
+      wsState.value = 'disconnected'
+    },
+    onMessage(msg) {
+      if (msg.type === 'ORDER_STATUS') {
+        ElMessage({
+          message: `状态更新：${statusLabel(msg.data.fromStatus)} → ${statusLabel(msg.data.status)}`,
+          type: 'success',
+          duration: 2500,
+        })
+        // 简单可靠的做法：状态变了就拉一次全量
+        loadAll()
+      } else if (msg.type === 'RIDER_LOCATION') {
+        // 位置是高频推送，走增量更新，不拉全量
+        if (track.value) {
+          track.value.lng = msg.data.lng
+          track.value.lat = msg.data.lat
+        }
+        trail.value.push({ lng: Number(msg.data.lng), lat: Number(msg.data.lat) })
+        if (trail.value.length > 300) trail.value.shift()
+      }
+    },
+    onReconnect() {
+      // 断线期间漏掉的推送补不回来，重连后拉全量兜底
+      wsState.value = 'reconnected'
+      ElMessage.info('网络已恢复，正在更新最新状态…')
+      loadAll()
+    },
+  })
+}
+
 async function cancelOrder() {
   try {
     await ElMessageBox.confirm(
@@ -106,25 +147,7 @@ async function cancelOrder() {
 
 onMounted(() => {
   loadAll()
-  // 连接 WebSocket，实时接收订单状态和骑手位置
-  wsClient = createWsClient(`/ws/user/${orderNo}`, {
-    onMessage(msg) {
-      if (msg.type === 'ORDER_STATUS') {
-        // 订单状态变化：重新拉全量（状态、骑手信息、事件流水一起更新）
-        loadAll()
-      } else if (msg.type === 'RIDER_LOCATION') {
-        // 骑手位置更新：增量更新地图上的骑手点和轨迹
-        if (msg.data?.lng && msg.data?.lat) {
-          track.value = { ...track.value, lng: msg.data.lng, lat: msg.data.lat }
-          trail.value = [...trail.value, { lng: Number(msg.data.lng), lat: Number(msg.data.lat) }]
-        }
-      }
-    },
-    onReconnect() {
-      // 断线重连后拉一次全量，补齐断线期间漏掉的推送
-      loadAll()
-    },
-  })
+  connect()
 })
 
 onUnmounted(() => {
@@ -141,6 +164,10 @@ onUnmounted(() => {
         <p class="page-desc num">{{ orderNo }}</p>
       </div>
       <div class="page-head-actions">
+        <span class="ws-chip" :data-state="wsState">
+          <span class="ws-dot"></span>
+          {{ wsLabel }}
+        </span>
         <router-link to="/user/orders" class="ghost-btn">
           <AppIcon name="list" :size="14" />
           我的订单

@@ -24,15 +24,6 @@ http.interceptors.request.use((config) => {
       config.headers.Authorization = `Bearer ${token}`
     }
   }
-  // F1 阶段：后端还没有鉴权，用 X-User-Id 直接传用户ID
-  // 后面 F5 鉴权模块做完后，这段可以删掉，身份由后端从 token 解析
-  const role = roleOfApiUrl(config.url || '')
-  if (role === auth.USER) {
-    const userId = auth.getId(auth.USER)
-    if (userId != null) {
-      config.headers['X-User-Id'] = userId
-    }
-  }
   return config
 })
 
