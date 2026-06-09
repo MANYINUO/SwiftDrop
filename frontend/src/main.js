@@ -5,6 +5,7 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn'
 
 import App from './App.vue'
 import router from './router'
+import { authApi } from './api'
 import auth from './utils/auth'
 import './styles/index.css'
 
@@ -38,10 +39,23 @@ app.use(ElementPlus, { locale: zhCn })
 app.use(router)
 
 /*
- * F1 阶段：后端还没有鉴权，直接用固定用户 ID 1001。
- * 后面 F5 鉴权模块做完后，再改成从 /auth/guest 领游客令牌。
+ * 顾客端免登录：挂载前确保有一个匿名游客身份。
+ * 领不到（如 Redis 没启动）也先挂载，首页和登录页照常可看，进入用户端时再提示。
  */
-if (!auth.isLoggedIn(auth.USER)) {
-  auth.set(auth.USER, { token: 'dev-user-token', id: 1001, name: '演示用户', role: 'USER' })
+async function ensureGuestThenMount() {
+  if (!auth.isLoggedIn(auth.USER)) {
+    try {
+      const data = await authApi.guest()
+      auth.set(auth.USER, { token: data.token, id: data.id, name: data.name, role: data.role })
+      // 成功拿到游客身份，重置 401 自愈标记
+      sessionStorage.removeItem('delivery_guest_reloaded')
+    } catch (e) {
+      console.warn('游客身份领取失败，顾客端暂不可用：', e?.message || e)
+    }
+  } else {
+    sessionStorage.removeItem('delivery_guest_reloaded')
+  }
+  app.mount('#app')
 }
-app.mount('#app')
+
+ensureGuestThenMount()

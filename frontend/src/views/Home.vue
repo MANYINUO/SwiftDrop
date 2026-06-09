@@ -1,7 +1,10 @@
 <script setup>
-import { useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import auth from '../utils/auth'
 import AppIcon from '../components/AppIcon.vue'
 
+const route = useRoute()
 const router = useRouter()
 
 /** 服务流程：从下单到送达，用户经历的四个环节 */
@@ -28,27 +31,40 @@ const FLOW = [
   },
 ]
 
-// F2 阶段：用户端 + 骑手端。后面 F6 加上后台后，再把卡片加回来。
-const ROLES = [
-  {
-    key: 'user',
-    to: '/user/create',
-    icon: 'user',
-    title: '用户端',
-    tagline: '下单 · 追踪',
-    desc: '在线下单呼叫骑手，实时查看骑手位置与订单进度。',
-    points: ['一键下单，快速安排骑手上门', '地图实时查看骑手位置', '订单状态与配送动态随时掌握'],
-  },
-  {
-    key: 'rider',
-    to: '/rider/1',
-    icon: 'scooter',
-    title: '骑手端',
-    tagline: '接单 · 配送',
-    desc: '上线接单，取货送达，位置实时上报，订单状态一目了然。',
-    points: ['上下线切换，待接单列表实时刷新', '一键接单、取货、送达', '位置上报与配送模拟'],
-  },
-]
+// 骑手端 / 调度后台：未登录先去对应登录页，已登录直接进自己的主页。
+// 借 route.fullPath 这个响应式依赖，在登录 / 退出引发路由变化后读到最新登录态。
+const ROLES = computed(() => {
+  void route.fullPath
+  return [
+    {
+      key: 'user',
+      to: '/user/create',
+      icon: 'user',
+      title: '用户端',
+      tagline: '下单 · 追踪',
+      desc: '在线下单呼叫骑手，实时查看骑手位置与订单进度。',
+      points: ['一键下单，快速安排骑手上门', '地图实时查看骑手位置', '订单状态与配送动态随时掌握'],
+    },
+    {
+      key: 'rider',
+      to: auth.isLoggedIn(auth.RIDER) ? `/rider/${auth.getId(auth.RIDER)}` : '/login/rider',
+      icon: 'scooter',
+      title: '骑手端',
+      tagline: '接单 · 配送',
+      desc: '上线即可接收附近订单，上门取件并完成配送。',
+      points: ['就近接单，订单实时推送', '一键更新位置与配送进度', '取货、送达状态及时同步'],
+    },
+    {
+      key: 'admin',
+      to: auth.isLoggedIn(auth.ADMIN) ? '/admin/dashboard' : '/login/admin',
+      icon: 'gauge',
+      title: '调度后台',
+      tagline: '调度 · 管理',
+      desc: '实时掌握订单履约与骑手运力，异常订单及时人工处理。',
+      points: ['运营指标实时更新', '订单与骑手统一管理', '异常订单人工调度与改派'],
+    },
+  ]
+})
 </script>
 
 <template>
@@ -97,8 +113,8 @@ const ROLES = [
     <!-- ==================== 角色入口 ==================== -->
     <section class="roles">
       <div class="roles-head">
-        <h2>选择角色</h2>
-        <p class="muted">用户下单，骑手接单配送，两端实时联动。</p>
+        <h2>一个平台，三个端</h2>
+        <p class="muted">面向下单用户、配送骑手与调度管理人员，订单信息实时同步。</p>
       </div>
 
       <div class="role-grid">
@@ -372,7 +388,8 @@ const ROLES = [
 
 .role-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* 刻意不等宽：第一张卡更大，打破"三列均分"的模板感 */
+  grid-template-columns: 1.25fr 1fr 1fr;
   gap: var(--sp-4);
 }
 

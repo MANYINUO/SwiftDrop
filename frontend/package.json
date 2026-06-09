@@ -1,5 +1,5 @@
 {
-  "name": "instant-delivery-frontend",
+  "name": "swiftdrop-frontend",
   "version": "1.0.0",
   "private": true,
   "description": "同城即时配送调度平台 · 前端（用户端 / 骑手端 / 调度后台）",

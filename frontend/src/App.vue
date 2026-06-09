@@ -1,33 +1,84 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { authApi } from './api'
+import auth from './utils/auth'
 import AppIcon from './components/AppIcon.vue'
 
 /**
  * 应用外壳。
  *
- * F1 阶段：只有用户端，导航只保留"概览"和"用户端"。
- * 后面 F2/F6 加上骑手端和后台后，再把对应导航加回来。
+ * 响应式策略：
+ *   ≥1024px  顶栏 = 品牌 + 分段导航 + 实时时钟
+ *   640~1023 顶栏 = 品牌 + 分段导航（收起时钟与副标题）
+ *   <640px   顶栏 = 品牌 + 当前页标题，导航挪到底部标签栏
+ *
+ * 所有页面共用同一个内容容器（不再区分"手机壳"和"宽屏"），
+ * 页面内部的栅格自己决定单列还是双列 —— 这样布局才是统一的。
  */
 const route = useRoute()
 const router = useRouter()
 
-const navs = [
-  { key: 'home', label: '概览', short: '概览', icon: 'grid', path: '/' },
-  { key: 'user', label: '用户端', short: '用户', icon: 'user', path: '/user/create' },
-  { key: 'rider', label: '骑手端', short: '骑手', icon: 'scooter', path: '/rider/1' },
-]
+// 骑手端 / 调度后台的落点随登录态变化：未登录去登录页，已登录进自己的主页。
+// 登录与退出都会改变路由，借 route.fullPath 这个响应式依赖在路由变化时读到最新登录态。
+const navs = computed(() => {
+  void route.fullPath
+  return [
+    { key: 'home', label: '概览', short: '概览', icon: 'grid', path: '/' },
+    { key: 'user', label: '用户端', short: '用户', icon: 'user', path: '/user/create' },
+    {
+      key: 'rider',
+      label: '骑手端',
+      short: '骑手',
+      icon: 'scooter',
+      path: auth.isLoggedIn(auth.RIDER) ? `/rider/${auth.getId(auth.RIDER)}` : '/login/rider',
+    },
+    {
+      key: 'admin',
+      label: '调度后台',
+      short: '后台',
+      icon: 'gauge',
+      path: auth.isLoggedIn(auth.ADMIN) ? '/admin/dashboard' : '/login/admin',
+    },
+  ]
+})
+
+// 当前处于特权端且已登录时，顶栏给出退出入口（顾客端是游客，无退出概念）
+const currentRole = computed(() => {
+  if (route.path.startsWith('/admin') && auth.isLoggedIn(auth.ADMIN)) return auth.ADMIN
+  if (route.path.startsWith('/rider') && auth.isLoggedIn(auth.RIDER)) return auth.RIDER
+  return null
+})
+
+const currentName = computed(() =>
+  currentRole.value ? auth.get(currentRole.value)?.name || '' : '',
+)
+
+async function logout() {
+  const role = currentRole.value
+  if (!role) return
+  try {
+    await authApi.logout(role)
+  } catch {
+    /* 后端注销失败也照常清前端登录态 */
+  }
+  auth.logout(role)
+  ElMessage.success('已退出登录')
+  router.push(role === auth.ADMIN ? '/login/admin' : '/login/rider')
+}
 
 const activeKey = computed(() => {
   const p = route.path
   if (p.startsWith('/user')) return 'user'
   if (p.startsWith('/rider')) return 'rider'
+  if (p.startsWith('/admin')) return 'admin'
   return 'home'
 })
 
 const pageTitle = computed(() => route.meta?.title || '概览')
 
-/* ---------- 顶栏时钟 ---------- */
+/* ---------- 顶栏时钟：给"调度中枢"一点仪表盘气质 ---------- */
 const now = ref(new Date())
 let timer = null
 
@@ -63,7 +114,7 @@ onUnmounted(() => clearInterval(timer))
       <!-- 移动端：导航在底部标签栏，这里只显示当前页标题 -->
       <div class="topbar-title">{{ pageTitle }}</div>
 
-      <nav class="segmented" role="tablist" aria-label="主导航">
+      <nav class="segmented" role="tablist" aria-label="角色切换">
         <router-link
           v-for="n in navs"
           :key="n.key"
@@ -79,6 +130,10 @@ onUnmounted(() => clearInterval(timer))
       </nav>
 
       <div class="topbar-meta">
+        <button v-if="currentRole" type="button" class="logout-btn" @click="logout">
+          <span class="logout-name">{{ currentName }}</span>
+          退出{{ currentRole === auth.ADMIN ? '后台' : '骑手' }}
+        </button>
         <span class="meta-date">{{ today }}</span>
         <span class="meta-clock num">{{ clock }}</span>
       </div>
@@ -245,6 +300,42 @@ onUnmounted(() => clearInterval(timer))
   letter-spacing: 0.02em;
 }
 
+/* ---------- 顶栏退出按钮（特权端已登录时出现） ---------- */
+.logout-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--r-md);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--n-0);
+  border: 1px solid var(--border-strong);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out-quart);
+}
+
+.logout-btn:hover {
+  color: var(--danger);
+  border-color: #fecdca;
+  background: var(--danger-bg);
+}
+
+.logout-name {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-strong);
+  font-weight: 700;
+}
+
+.logout-btn:hover .logout-name {
+  color: var(--danger);
+}
+
 /* ============================================================
    内容容器：所有页面共用
    ============================================================ */
@@ -302,7 +393,7 @@ onUnmounted(() => clearInterval(timer))
 
   .tabbar {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     position: fixed;
     left: 0;
     right: 0;
