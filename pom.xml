@@ -24,6 +24,7 @@
         <module>delivery-order</module>
         <module>delivery-dispatch</module>
         <module>delivery-notify</module>
+        <module>delivery-admin</module>
         <module>delivery-boot</module>
     </modules>
 
