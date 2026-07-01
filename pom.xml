@@ -25,6 +25,7 @@
         <module>delivery-dispatch</module>
         <module>delivery-notify</module>
         <module>delivery-admin</module>
+        <module>delivery-ai</module>
         <module>delivery-boot</module>
     </modules>
 
@@ -39,12 +40,26 @@
 
     <dependencyManagement>
         <dependencies>
+            <!--
+              Spring AI 1.0.0-M6：这是兼容 Spring Boot 3.2.x 的最后一个里程碑版本。
+              1.0.0 GA 与 1.1.x 都要求 Boot 3.4+，本项目锁定 3.2.5 不可升级，
+              因此只能用 M6。BOM 必须 import 在 dependencyManagement 最前面，
+              否则下面的 Spring AI starter 拿不到版本。
+            -->
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>1.0.0-M6</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency><groupId>com.delivery</groupId><artifactId>delivery-common</artifactId><version>${project.version}</version></dependency>
             <dependency><groupId>com.delivery</groupId><artifactId>delivery-order</artifactId><version>${project.version}</version></dependency>
             <dependency><groupId>com.delivery</groupId><artifactId>delivery-rider</artifactId><version>${project.version}</version></dependency>
             <dependency><groupId>com.delivery</groupId><artifactId>delivery-dispatch</artifactId><version>${project.version}</version></dependency>
             <dependency><groupId>com.delivery</groupId><artifactId>delivery-notify</artifactId><version>${project.version}</version></dependency>
             <dependency><groupId>com.delivery</groupId><artifactId>delivery-admin</artifactId><version>${project.version}</version></dependency>
+            <dependency><groupId>com.delivery</groupId><artifactId>delivery-ai</artifactId><version>${project.version}</version></dependency>
             <dependency>
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
