@@ -141,3 +141,17 @@ export const adminApi = {
     return http.get('/admin/metrics/order-status')
   },
 }
+
+/* ==================== AI 调度 Copilot ==================== */
+
+export const aiApi = {
+  /**
+   * 解释一笔订单为什么派给了现在的骑手。
+   *
+   * 后端保证永不报错：模型不可用时会返回 mode=TEMPLATE 的模板答案，
+   * 因此前端不需要为「AI 挂了」单独做兜底页面。
+   */
+  explain(orderNo) {
+    return http.get(`/admin/ai/explain/${orderNo}`)
+  },
+}

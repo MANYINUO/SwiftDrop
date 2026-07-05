@@ -41,6 +41,18 @@ spring:
     time-zone: Asia/Shanghai
     default-property-inclusion: non_null
 
+  # ---------------- AI（Spring AI 1.0.0-M6，兼容 Boot 3.2.x）----------------
+  ai:
+    openai:
+      # 必须通过环境变量注入，禁止提交到仓库
+      api-key: ${AI_API_KEY:}
+      base-url: ${AI_BASE_URL:https://api.deepseek.com}
+      chat:
+        options:
+          model: ${AI_MODEL:deepseek-chat}
+          # 分析类任务要稳定，不要创造性
+          temperature: 0.2
+
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
@@ -85,3 +97,14 @@ delivery:
       # 数字密码建议加引号，避免被 YAML 当作数值解析
       password: "${ADMIN_PASSWORD:123456}"
       name: 调度管理员
+  # ---------------- AI 调度 Copilot ----------------
+  # 默认关闭：没配 Key 的部署天然不会失败；开启需显式设置 AI_ENABLED=true。
+  # 关闭时接口仍返回模板答案，前端不会报错。
+  ai:
+    enabled: ${AI_ENABLED:false}
+    # 答案长度上限，超出截断到最后一个完整句
+    max-answer-chars: 400
+    # 工具调用次数上限：防止模型反复调同一工具导致请求挂死
+    max-tool-calls: 6
+    # 按「订单 + 轮次」缓存解释结果的秒数（当前版本未启用缓存，预留）
+    cache-ttl-seconds: 3600

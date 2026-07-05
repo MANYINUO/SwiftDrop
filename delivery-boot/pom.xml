@@ -39,6 +39,11 @@
       <groupId>com.delivery</groupId>
       <artifactId>delivery-admin</artifactId>
     </dependency>
+    <!-- AI 模块：仅在此处聚合，admin / dispatch 都不依赖它，保证 AI 故障不影响主链路 -->
+    <dependency>
+      <groupId>com.delivery</groupId>
+      <artifactId>delivery-ai</artifactId>
+    </dependency>
     <dependency>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-actuator</artifactId>
