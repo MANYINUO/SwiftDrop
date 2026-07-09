@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { adminApi } from '../../api'
+import { adminApi, aiApi } from '../../api'
 import { toastError } from '../../api/http'
 import {
   statusLabel, fenToYuan, formatTime, formatTimeShort, formatDistance,
@@ -57,6 +57,34 @@ const detailLoading = ref(false)
 const selectedRiderId = ref(null)
 const acting = ref(false)
 
+/* ==================== AI 分析 ==================== */
+/* 只在用户点击时调用：按需触发，不随页面刷新自动请求，成本可控 */
+const aiLoading = ref(false)
+const aiResult = ref(null)
+const aiError = ref(false)
+let aiRequestVersion = 0
+
+async function runAiExplain() {
+  if (!detail.value) return
+  const orderNo = detail.value.orderNo
+  const requestVersion = ++aiRequestVersion
+  aiLoading.value = true
+  aiError.value = false
+  try {
+    const result = await aiApi.explain(orderNo)
+    // 订单切换后丢弃旧请求结果，避免把上一单的解释显示在当前详情里。
+    if (requestVersion !== aiRequestVersion || detail.value?.orderNo !== orderNo) return
+    aiResult.value = result
+  } catch (e) {
+    if (requestVersion !== aiRequestVersion || detail.value?.orderNo !== orderNo) return
+    aiResult.value = null
+    aiError.value = true
+    toastError(e)
+  } finally {
+    if (requestVersion === aiRequestVersion) aiLoading.value = false
+  }
+}
+
 async function load(silent = false) {
   if (!silent) loading.value = true
   try {
@@ -81,9 +109,15 @@ function applyFilter() {
 }
 
 async function openDetail(row) {
+  // 使正在执行的 AI 请求失效；即使它随后返回也不会覆盖新订单的状态。
+  aiRequestVersion++
+  aiLoading.value = false
   drawer.value = true
   detailLoading.value = true
   selectedRiderId.value = null
+  // 切换订单时清空上一单的 AI 结果，避免串单
+  aiResult.value = null
+  aiError.value = false
   try {
     const [d, t, ev, rs] = await Promise.all([
       adminApi.orderDetail(row.orderNo),
@@ -489,6 +523,11 @@ onUnmounted(() => clearInterval(timer))
                 标记异常
               </el-button>
 
+              <el-button :loading="aiLoading" @click="runAiExplain">
+                <AppIcon name="zap" :size="14" :stroke-width="2.1" />
+                AI 分析
+              </el-button>
+
               <template v-if="detail.status === 'EXCEPTION'">
                 <el-button type="primary" plain @click="resolveOrder('REASSIGN')">
                   <AppIcon name="refresh" :size="14" :stroke-width="2.1" />
@@ -504,6 +543,25 @@ onUnmounted(() => clearInterval(timer))
             <p class="ops-note">
               列表仅显示在线且未满载、当前可接单的骑手。
             </p>
+
+            <!-- AI 分析结果：仅在点击过「AI 分析」后出现 -->
+            <div v-if="aiError" class="ai-card ai-card--error">
+              AI 暂不可用，可查看下方派单明细。
+            </div>
+            <div v-else-if="aiResult" class="ai-card">
+              <div class="ai-head">
+                <AppIcon name="zap" :size="14" :stroke-width="2.1" />
+                <span>派单解释</span>
+              </div>
+              <p class="ai-conclusion">{{ aiResult.conclusion }}</p>
+              <ul v-if="aiResult.evidence && aiResult.evidence.length" class="ai-evidence">
+                <li v-for="(e, i) in aiResult.evidence" :key="i">{{ e }}</li>
+              </ul>
+              <p class="ai-foot">
+                数字来自派单明细 · {{ aiResult.mode }}
+                <span v-if="aiResult.latencyMs"> · {{ aiResult.latencyMs }}ms</span>
+              </p>
+            </div>
           </section>
 
           <!-- 派单记录 -->
@@ -901,6 +959,51 @@ onUnmounted(() => clearInterval(timer))
 .ops-note {
   margin-top: var(--sp-3);
   font-size: var(--fs-12);
+  color: var(--text-faint);
+}
+
+/* ---------- AI 分析卡片 ---------- */
+.ai-card {
+  margin-top: var(--sp-4);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.ai-card--error {
+  color: var(--text-faint);
+  font-size: var(--fs-13);
+}
+
+.ai-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: var(--sp-2);
+}
+
+.ai-conclusion {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.ai-evidence {
+  margin: 0;
+  padding-left: 18px;
+  font-size: var(--fs-13);
+  line-height: 1.75;
+  color: var(--text-muted);
+}
+
+.ai-foot {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-11);
   color: var(--text-faint);
 }
 
