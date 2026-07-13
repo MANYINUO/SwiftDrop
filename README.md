@@ -71,12 +71,17 @@ flowchart TB
         DISPATCH["delivery-dispatch<br/>派单引擎 / 超时重派"]
         ADMIN["delivery-admin<br/>后台 / 指标"]
         NOTIFY["delivery-notify<br/>事件转推送"]
+        AI["delivery-ai<br/>AI 调度解释<br/>工具调用 / 数字校验"]
     end
 
     subgraph INFRA["基础设施"]
         direction LR
         MYSQL[("MySQL 8<br/>订单 / 任务 / 流水")]
         REDIS[("Redis 7<br/>GEO / Token / 幂等")]
+    end
+
+    subgraph EXT["外部服务（可选）"]
+        LLM["大模型 API<br/>OpenAI 兼容协议"]
     end
 
     U --> AUTH
@@ -88,6 +93,7 @@ flowchart TB
     AUTH --> ORDER
     AUTH --> RIDER
     AUTH --> ADMIN
+    AUTH --> AI
     WS --> NOTIFY
 
     ORDER -->|"下单事件"| DISPATCH
@@ -103,6 +109,10 @@ flowchart TB
     DISPATCH --> REDIS
     RIDER --> REDIS
     ORDER --> REDIS
+
+    AI -->|"工具调用：只读查库"| ORDER
+    AI -->|"工具调用：只读查库"| DISPATCH
+    AI -.->|"HTTPS（可关闭）"| LLM
 ```
 
 </div>
@@ -133,6 +143,7 @@ flowchart TB
 - 订单管理：状态、路线、骑手、派单轮次，以及**每一轮、每位候选骑手的打分明细**与事件流水
 - 骑手管理：在线 / 工作状态、负载、评分、实时位置
 - 人工干预：手动派单 / 按算法重派、标记异常、异常后改派或取消
+- **AI 分析**（可选开关）：订单详情页一键生成「为什么派给这个骑手」的解释，结论下面附分条依据；默认关闭，未配 Key 也不影响其他功能
 
 ---
 
@@ -151,18 +162,22 @@ swiftdrop/                       父 POM（packaging=pom），聚合模块并统
 ├── delivery-dispatch/           调度引擎：候选筛选与打分、派单任务、接单原子事务、超时重派
 ├── delivery-notify/             WebSocket 长连接、领域事件转实时推送
 ├── delivery-admin/              调度后台：查询、手动派单、异常处理、指标聚合
+├── delivery-ai/                 AI 调度解释：工具调用、数字校验、模板降级
 └── delivery-boot/               启动模块：聚合以上模块、配置文件与可执行 jar
 ```
 
 模块依赖方向（**不允许反向依赖**）：
 
 ```
-boot → admin / notify → dispatch → order / rider → common
-                        notify  → order / rider
-                        order   → rider
+boot → admin / notify / ai → dispatch → order / rider → common
+                             notify  → order / rider
+                             order   → rider
+                             ai      → order / dispatch
 ```
 
 订单与骑手模块只**发布领域事件**，通知模块负责**监听并推送**。因此业务模块不需要感知 WebSocket 的存在，调度逻辑与实时通信彻底解耦。
+
+AI 模块是**只能读的旁路**：它依赖 order 与 dispatch 做只读查询，被 boot 装配，不被任何业务模块依赖。关闭开关后它不产生任何调用，删掉它其余模块照常编译。
 
 ### 一次完整派单流程
 
@@ -295,6 +310,70 @@ score = 0.35×距离分 + 0.20×负载分 + 0.25×顺路分 + 0.10×评分分 + 
 - 可变状态表带 `version` 字段支持乐观锁；状态使用可读的字符串而非数字码，便于排查。
 - 对外暴露业务订单号 `order_no`，不暴露数据库自增 ID。
 
+### 10. AI 调度解释：让模型说人话，但只准说真话
+
+后台看板上有「每一轮每位候选骑手的打分明细」，数据是全的，但一屏 JSON 要人自己读。AI 模块做的是把这堆数字翻成一段中文解释：为什么这单派给了这个骑手、另外几个差在哪。
+
+关键不在于能不能让模型生成，而在于**怎么保证它说的数字是对的**。
+
+**① 只给工具，不给上下文**
+
+模型不接触数据库，也没有被塞入任何订单文本。它只有两个只读工具：
+
+| 工具 | 返回 |
+|---|---|
+| `getDispatchTasks(orderNo)` | 该单每一轮、每个候选骑手的因子得分明细 |
+| `getOrderEvents(orderNo)` | 该单的事件流水（下单、派单、接单、异常） |
+
+模型自己决定调哪个、调几次。数字从哪里来、能不能编，是两条独立的问题。
+
+**② 数字白名单：把「是否诚实」变成可判定的集合包含**
+
+工具返回的原始 JSON 全部塞进当次请求的 `FactSheet`（ThreadLocal），从中抽出所有出现过的数字作为**允许集合**。模型输出后再抽一次数字，凡是不在集合里的，判定为编造，直接拦掉。
+
+这一步是整块设计的地基。大模型最危险的失败模式不是胡说八道——胡说八道一眼能看出来——而是**把 0.814 写成 0.81**，读起来毫无破绽，调度员据此决策就错了。
+
+抽取前后都要做数字归一化（`8.00` → `8`、`0.8140` → `0.814`、去掉千分位），否则误杀率极高。
+
+**③ 工具调用次数上限：Agent 会不会挂死的唯一防线**
+
+Spring AI **没有**内置「最多调用几次工具」。模型如果拿到空结果反复重试同一工具，请求会一直循环到 HTTP 超时：用户看着转圈，服务端线程一直被占着。
+
+这里包了一层 `ToolCallingManager`，在真正执行工具前累计次数，超过 6 次抛异常中断本次请求。计数器用 ThreadLocal 而不是静态变量——静态变量在并发下所有请求共享同一个计数，第一个请求用完配额后其他请求全被误判。
+
+> 踩过一个坑：最初用 `@Primary` 覆盖 `ToolCallingManager`，启动直接失败。`openAiChatModel` 需要注入 `ToolCallingManager`，`@Primary` 让容器选中我们定义的 Bean，而我们的 Bean 又要求注入一个 `ToolCallingManager`，容器判定为循环引用（Spring Boot 3 默认禁止），启动失败。正确做法是 Bean 方法**不注入 delegate**，方法内部用 `ToolCallingManager.builder().build()` 现建一个默认实现，装配期无环，运行期等价。
+
+**④ 三层降级：模型不可用时，用户看到的是正常答案而不是报错**
+
+```
+开关关闭        → 模板
+调用异常/超时/429 → 模板
+守卫校验不通过    → 模板
+```
+
+`TemplateAnswer` 不是错误提示，是**降级后的正常答案**：结论与因子明细由 Java 直接从 `score_detail` 拼装，不经过模型，因此天然不存在幻觉。这是它能在守卫拦下后安全接管的原因。
+
+开关关闭、没配 Key、模型挂了，接口返回的都是 200 + 一份结构完整的解释，只是 `mode` 字段从 `LLM` 变成 `TEMPLATE`。前端不需要为「AI 不可用」写任何分支。
+
+**⑤ 几个刻意的约束**
+
+- **问句写死，不拼用户输入**：`"解释订单 %s 为什么派给了现在的骑手"`，订单号来自路径参数且已校验存在性。不给提示注入留口子。
+- **路由挂在 `/api/admin/**` 下**：复用 `AuthFilter` 已有的 ADMIN 分支。如果新开 `/api/ai/**`，会变成匿名可访问，而它能读到订单与骑手数据——那是一个真实的数据泄露面。
+- **ThreadLocal 必须在 finally 里清**：Tomcat 线程复用，不清会让下一个请求读到上一个订单的事实表。那不是「校验失效」，是「拿别人的数据当白名单」，比不校验更危险。
+- **默认关闭**：`delivery.ai.enabled` 默认 `false`，`AI_API_KEY` 默认为空。克隆下来不改任何配置也能正常启动，不会因为缺 Key 崩在启动阶段。
+
+调用链最终形态：
+
+```
+AdminAiController  →  Copilot(SpringAiCopilot)
+                        ├─ 开关关 → TemplateAnswer
+                        ├─ FactSheet 绑定 + 计数器归零
+                        ├─ ChatClient 调模型（模型自选工具）→ DispatchTools 写 FactSheet
+                        ├─ OutputGuard 校验数字白名单 / 拒绝话术 / 长度
+                        ├─ 拆分「结论 + 证据」
+                        └─ 任意异常 → TemplateAnswer
+```
+
 ---
 
 ## 🗄️ 数据库设计
@@ -351,6 +430,9 @@ mysql -h127.0.0.1 -uroot -p < sql/schema.sql
 | `spring.data.redis.host / port / password` | Redis 地址、端口、密码 |
 | `delivery.auth.admin.username / password` | 后台管理员账号，默认 `admin / 123456` |
 | `delivery.dispatch.*`、`delivery.location.*` | 派单超时、候选数、轮次、搜索半径、位置防抖等可调参数 |
+| `delivery.ai.enabled` | AI 分析开关，默认 `false` |
+| `delivery.ai.max-answer-chars / max-tool-calls` | 答案长度上限（400）、工具调用次数上限（6） |
+| `spring.ai.openai.api-key / base-url / chat.options.model` | 模型 Key、网关地址、模型名，仅在 `AI_ENABLED=true` 时生效 |
 
 也支持用环境变量覆盖，适合容器化部署：
 
@@ -368,7 +450,15 @@ REDIS_PASSWORD=
 # ==== 后台账号 ====
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=123456
+
+# ==== AI（可选，不配也能启动）====
+AI_ENABLED=true
+AI_API_KEY=你的模型Key
+AI_BASE_URL=https://api.deepseek.com
+AI_MODEL=deepseek-chat
 ```
+
+> AI 模块默认关闭：`AI_ENABLED` 不设或设为 `false` 时，`/api/admin/ai/explain/{orderNo}` 返回模板答案，不发起任何外部请求。想跑真实模型才需要配 `AI_API_KEY`，`AI_BASE_URL` 兼容任何 OpenAI 协议的网关。
 
 ### 3. 启动后端
 
@@ -501,6 +591,7 @@ BACKEND=http://192.168.1.10:8080 npm run dev
 | GET | `/api/admin/riders`、`/api/admin/riders/online` | 骑手列表 / 在线骑手 |
 | GET | `/api/admin/metrics` | 指标看板数据 |
 | GET | `/api/admin/metrics/order-status` | 订单状态分布 |
+| GET | `/api/admin/ai/explain/{orderNo}` | AI 解释这笔订单为什么派给当前骑手（默认返回模板，开关打开且模型可用时返回模型答案） |
 
 </details>
 
@@ -533,7 +624,7 @@ BACKEND=http://192.168.1.10:8080 npm run dev
 
 ```
 SwiftDrop/
-├── pom.xml                          根 POM，聚合 7 个模块
+├── pom.xml                          根 POM，聚合 8 个模块
 ├── sql/schema.sql                   数据库初始化脚本
 ├── delivery-common/                 公共模块
 │   └── src/main/java/com/delivery/common/
@@ -574,6 +665,16 @@ SwiftDrop/
 │   └── .../admin/
 │       ├── controller/              订单、骑手、指标接口
 │       └── service/                 指标聚合统计
+├── delivery-ai/                     AI 调度解释模块（可选）
+│   └── .../ai/
+│       ├── answer/                  模板答案：不依赖模型的兜底文案
+│       ├── config/                  Spring AI 装配、限次器、配置属性
+│       ├── context/                 事实表：一次请求内的数字白名单
+│       ├── controller/              AI 分析接口
+│       ├── facade/                  Copilot 接口与实现、返回 VO
+│       ├── guard/                   输出守卫：数字校验、拒绝话术、长度
+│       ├── tool/                    工具方法（只读查派单明细 / 事件流水）
+│       └── resources/prompts/       系统提示词
 ├── delivery-boot/                   启动模块
 │   └── src/main/
 │       ├── java/com/delivery/
@@ -606,18 +707,23 @@ SwiftDrop/
 | 持久层 | MyBatis-Plus 3.5.7、MySQL 8（InnoDB / utf8mb4）、HikariCP |
 | 缓存 / 调度 | Redis 7：GEO 附近骑手检索、Token、幂等键、防抖与状态缓存，Lettuce 连接池 |
 | 实时通信 | 原生 WebSocket（`/ws/rider/{riderId}`、`/ws/user/{orderNo}`），Spring 事件解耦 |
+| AI（可选） | Spring AI 1.0.0-M6（`spring-ai-openai-spring-boot-starter`，OpenAI 兼容协议）、DeepSeek chat 模型 |
 | 前端 | Vue 3.5、Vite 5、Vue Router 4（hash 模式）、Element Plus 2.8、ECharts 5、Axios |
 | 地图 | 高德地图 JS API 2.0（`@amap/amap-jsapi-loader`，GCJ-02 坐标系） |
 | 工程化 | Maven 多模块、Git、Spring Boot Actuator |
+
+> Spring AI 选 `1.0.0-M6` 而不是 GA：GA 与 1.1.x 要求 Spring Boot 3.4+，本项目在 3.2.5 上，M6 是唯一兼容的版本。
 
 **代码规模**
 
 | 部分 | 文件数 | 行数 |
 |---|---|---|
-| 后端 Java | 96 | 约 8800 行 |
-| 前端 Vue | 11 | 约 8500 行 |
-| 前端 JS / CSS | — | 约 2500 行 |
-| **合计** | **约 150 个文件** | **约 20000 行** |
+| 后端 Java | 96 | 约 7100 行 |
+| 前端 Vue | 19 | 约 7500 行 |
+| 前端 JS / CSS | 15 | 约 2100 行 |
+| **合计** | **约 130 个文件** | **约 16700 行** |
+
+> 后端 96 个文件含 `delivery-ai` 的 13 个主类与 2 个测试类；前端 Vue 行数为 `.vue` 单文件组件，含模板、脚本与样式。
 
 ---
 
